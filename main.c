@@ -9,6 +9,27 @@
 #define DEF_BUFFER_SIZE 100
 #define calc_display_id 101
 
+/*#define button_1_id 102
+#define button_2_id 103
+#define button_3_id 104
+#define button_4_id 105
+#define button_5_id 106
+#define button_6_id 107
+#define button_7_id 108
+#define button_8_id 109
+#define button_9_id 110
+#define button_0_id 111
+#define plus_button_id 112
+#define minus_button_id 113
+#define multiply_button_id 114
+#define divide_button_id 115
+#define decimal_point_button_id 116
+#define equal_button_id 117
+#define backspace_button_id 118
+#define clear_button_id 119*/
+
+enum button_ids {button_1_id, button_2_id, button_3_id, button_4_id, button_5_id, button_6_id, button_7_id, button_8_id, button_9_id, button_0_id, plus_button_id, minus_button_id, multiply_button_id, divide_button_id, decimal_point_button_id, percent_button_id, equal_button_id, backspace_button_id, clear_button_id};
+
 HWND main_window_handle = NULL;
 HWND main_calc_display_label = NULL;
 LPSTR main_window_class_name = "Main Window Class";
@@ -19,6 +40,36 @@ int def_w_top = 100;
 int def_w_height = 540;
 int default_w_width = 640;
 char* buttons_text_list[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "+", "-", "x", "÷", ".", "%", "=", "Back", "Clear"};
+DWORD button_styles = BS_NOTIFY | BS_TEXT | BS_DEFPUSHBUTTON | WS_BORDER | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE;
+int base_button_u_id = 102;
+char default_calc_display_text[] = "Perform some calculations here.";
+int current_display_char_count = 0;
+
+/*HWND button_1 = NULL;
+HWND button_2 = NULL;
+HWND button_3 = NULL;
+HWND button_4 = NULL;
+HWND button_5 = NULL;
+HWND button_6 = NULL;
+HWND button_7 = NULL;
+HWND button_8 = NULL;
+HWND button_9 = NULL;
+HWND button_0 = NULL;
+HWND plus_button = NULL;
+HWND minus_button = NULL;
+HWND multiply_button = NULL;
+HWND divide_button = NULL;*/
+
+typedef struct Button_Window
+{
+
+    int button_id;
+
+    char button_text[DEF_BUFFER_SIZE];
+
+    HWND button_handle;
+
+}Button_Window;
 
 typedef struct ButtonGrid
 {
@@ -48,16 +99,22 @@ ButtonGrid calculator_buttons = {0};
 
 char convert_int_to_char(int number)
 {
-    char new_char = number + '0';
+    return number + '0';
+}
 
-    return new_char;
+int convert_char_to_int(char letter)
+{
+    return letter - '0';
+}
+
+int generate_unique_id(int base_num, int element_index)
+{
+    return base_num + element_index;
 }
 
 ButtonGrid create_button_grid(int grid_id, int buttons_count, int h_spacing, int v_spacing, int grid_left, int grid_top, int buttons_per_row, int button_width, int button_height, HWND parent_window_handle)
 {
     ButtonGrid new_button_grid = {grid_id, buttons_count, h_spacing, v_spacing, grid_left, grid_top, buttons_per_row, {0}, button_width, button_height};
-
-    DWORD button_styles = BS_NOTIFY | BS_TEXT | BS_DEFPUSHBUTTON | WS_BORDER | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE;
 
     for (int i = 0; i < buttons_count; i++)
     {
@@ -67,19 +124,19 @@ ButtonGrid create_button_grid(int grid_id, int buttons_count, int h_spacing, int
 
         int current_row = 1;
 
-        int u_id = 150;
-
         while (buttons_created < new_button_grid.buttons_count)
         {
             while (btns_per_row < new_button_grid.buttons_per_row && buttons_created < new_button_grid.buttons_count)
             {
-                new_button_grid.buttons_list[buttons_created] = CreateWindowA("Button", buttons_text_list[buttons_created], button_styles, grid_left + btns_per_row * (h_spacing + button_width), grid_top + current_row * (v_spacing + button_height), button_width, button_height, parent_window_handle , (HMENU)u_id, GetModuleHandle(NULL), NULL);
+                enum button_ids current_button_id = buttons_created;
+
+                //printf("Current id: %d\n", current_button_id);
+
+                new_button_grid.buttons_list[buttons_created] = CreateWindowA("Button", buttons_text_list[current_button_id], button_styles, grid_left + btns_per_row * (h_spacing + button_width), grid_top + current_row * (v_spacing + button_height), button_width, button_height, parent_window_handle , (HMENU)(base_button_u_id + current_button_id), GetModuleHandle(NULL), NULL);
 
                 btns_per_row ++;
 
                 buttons_created ++;
-
-                u_id++;
             }
 
             btns_per_row = 0;
@@ -120,11 +177,9 @@ void InitMainWindowControls(HINSTANCE h_instance)
 {
     DWORD calc_display_style = SS_SUNKEN | SS_CENTER | WS_CHILD | WS_VISIBLE;
 
-    main_calc_display_label = CreateWindowA("Static", "Do some calculations here.", calc_display_style, 100, 40, 440, 60, main_window_handle, (HMENU)calc_display_id, h_instance, NULL);
+    main_calc_display_label = CreateWindowA("Static", default_calc_display_text, calc_display_style, 100, 40, 440, 60, main_window_handle, (HMENU)calc_display_id, h_instance, NULL);
 
     calculator_buttons = create_button_grid(1, 19, 100, 20, 130, 80, 3, 60, 30, main_window_handle);
-
-    label_calculator_buttons(&calculator_buttons);
 }
 
 LRESULT WndProc(HWND h_window, UINT u_msg, WPARAM w_param, LPARAM l_param)
@@ -135,6 +190,8 @@ LRESULT WndProc(HWND h_window, UINT u_msg, WPARAM w_param, LPARAM l_param)
         {
             if (main_calc_display_label != NULL)
             {
+                //printf("Current button text: %s\n", current_button_text);
+
                 char calc_display_text[DEF_BUFFER_SIZE] = "Placeholder text.";
 
                 SendMessage(main_calc_display_label, WM_GETTEXT, DEF_BUFFER_SIZE, (LPARAM)&calc_display_text);
@@ -143,26 +200,46 @@ LRESULT WndProc(HWND h_window, UINT u_msg, WPARAM w_param, LPARAM l_param)
                 a fixed length (e.g. 100) solves this issue (Text not getting copied into the buffer initially but then also
                 a Memory Access Violation error being thrown upon calling the SendMessage function above).*/
 
-                if(strcmp(calc_display_text, "Do some calculations here.") == 0)
+                if(strcmp(calc_display_text, default_calc_display_text) == 0)
                 {
                     *calc_display_text = '\0';
 
                     SetWindowTextA(main_calc_display_label, calc_display_text);
                 }
 
-                for (int i = 0; i < calculator_buttons.buttons_count; i++)
+                /*
+                For future reference only:
+                The button receives 3 notification codes when it is clicked once, a code 0, a code 6 and a code 7.
+                BN_SETFOCUS corresponds to notification code 6.
+                BN_KILLFOCUS corresponds to notification code 7.
+                BN_CLICKED corresponds to notification code 0.
+                */
+
+                if (HIWORD(w_param) == BN_CLICKED)
                 {
-                    int button_state = SendMessage(calculator_buttons.buttons_list[i], BM_GETSTATE, 0, 0);
+                    int current_button_id = LOWORD(w_param) - base_button_u_id;
 
-                    printf("Button state: %d\n", button_state);
-
-                    if (LOWORD(w_param) == GetDlgCtrlID(calculator_buttons.buttons_list[i]))
+                    if (strcmp(buttons_text_list[current_button_id], "Clear") == 0)
                     {
-                        strcat(calc_display_text, buttons_text_list[i]);
-
-                        SetWindowTextA(main_calc_display_label, calc_display_text);
+                        *calc_display_text = '\0';
                     }
+                    else if (strcmp(buttons_text_list[current_button_id], "Back") == 0 && current_display_char_count > 0)
+                    {
+                        *(calc_display_text + current_display_char_count - 1) = '\0';
+
+                        current_display_char_count -= 1;
+                    }
+                    else
+                    {
+                        strcat(calc_display_text, buttons_text_list[current_button_id]);
+
+                        current_display_char_count++;
+                    }
+
+                    SetWindowTextA(main_calc_display_label, calc_display_text);
                 }
+
+
             }
 
             break;
