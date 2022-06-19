@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1655639512 source:c:\dev\cprojects\win32guibasedcalculator\main.c
+	<stdlib.h>
+	<stdio.h>
+	<string.h>
+	<windows.h>
+	<shellapi.h>
+
